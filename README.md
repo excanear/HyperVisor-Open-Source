@@ -143,7 +143,7 @@ cmake --build . --config Release
   ├── 0x09010000: Timer
   ├── 0x09020000: GIC Distributor
   └── 0x09030000: GIC CPU Interface
-```
+
 
 ### Exception Types Handled
 - **HVC**: Hypercalls do guest
