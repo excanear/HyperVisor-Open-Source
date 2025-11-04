@@ -1,0 +1,162 @@
+# Desenvolvido por: Escanearcpl
+# Build the complete GUI hypervisor
+cmake_minimum_required(VERSION 3.20)
+project(ARM64_GUI_Hypervisor)
+
+# Set C standard
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Set output directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# ARM64 specific settings
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64")
+    message(STATUS "Building for ARM64")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a")
+else()
+    message(STATUS "Building for x64 (cross-compile to ARM64)")
+endif()
+
+# Windows specific settings
+if(WIN32)
+    add_definitions(-D_WIN32_WINNT=0x0A00)  # Windows 10
+    add_definitions(-DWINVER=0x0A00)
+    add_definitions(-DUNICODE -D_UNICODE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
+endif()
+
+# Find required packages
+find_package(DirectX QUIET)
+
+# Include directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+# Source files for GUI hypervisor
+set(GUI_HYPERVISOR_SOURCES
+    src/gui_main.c
+    src/gui_graphics.c
+    src/gui_osloader.c
+    src/vm.c
+    src/exit_handler.c
+    src/devices/uart_pl011.c
+    src/devices/timer.c
+    src/devices/gic.c
+    src/exception_handlers.c
+)
+
+# Headers
+set(GUI_HYPERVISOR_HEADERS
+    include/gui_hypervisor.h
+    include/vm.h
+    include/exit_handler.h
+    include/devices/uart_pl011.h
+    include/devices/timer.h
+    include/devices/gic.h
+    include/exception_handlers.h
+)
+
+# ARM64 assembly source (if available)
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/entry.s")
+    list(APPEND GUI_HYPERVISOR_SOURCES src/entry.s)
+endif()
+
+# Create GUI hypervisor executable
+add_executable(gui_hypervisor ${GUI_HYPERVISOR_SOURCES} ${GUI_HYPERVISOR_HEADERS})
+
+# Link libraries
+target_link_libraries(gui_hypervisor
+    winhvplatform      # Windows Hypervisor Platform
+    user32             # Windows User32 API
+    gdi32              # Windows GDI32 API
+    kernel32           # Windows Kernel32 API
+    advapi32           # Advanced Windows API
+    shell32            # Windows Shell API
+    comctl32           # Common Controls
+    comdlg32           # Common Dialogs
+    ole32              # OLE32
+    oleaut32           # OLE Automation
+    uuid               # UUID library
+)
+
+# DirectX 11 libraries
+if(WIN32)
+    target_link_libraries(gui_hypervisor
+        d3d11              # Direct3D 11
+        dxgi               # DirectX Graphics Infrastructure
+        d3dcompiler        # DirectX Shader Compiler
+    )
+endif()
+
+# Compiler specific settings
+if(MSVC)
+    # Visual Studio settings
+    target_compile_options(gui_hypervisor PRIVATE
+        /W3                # Warning level 3
+        /WX-               # Don't treat warnings as errors
+        /permissive-       # Disable non-conforming code
+        /Zc:wchar_t        # wchar_t is native type
+        /MP                # Multi-processor compilation
+    )
+    
+    # Enable Windows subsystem
+    set_target_properties(gui_hypervisor PROPERTIES
+        WIN32_EXECUTABLE TRUE
+        LINK_FLAGS "/SUBSYSTEM:WINDOWS"
+    )
+    
+elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    # GCC/Clang settings
+    target_compile_options(gui_hypervisor PRIVATE
+        -Wall              # Enable warnings
+        -Wextra            # Extra warnings
+        -Wno-unused-parameter
+        -fno-strict-aliasing
+    )
+    
+    # Windows subsystem for MinGW
+    if(WIN32)
+        set_target_properties(gui_hypervisor PROPERTIES
+            WIN32_EXECUTABLE TRUE
+            LINK_FLAGS "-Wl,--subsystem,windows"
+        )
+    endif()
+endif()
+
+# Set properties
+set_target_properties(gui_hypervisor PROPERTIES
+    OUTPUT_NAME "ARM64_GUI_Hypervisor"
+    DEBUG_POSTFIX "_debug"
+)
+
+# Copy necessary files to output directory
+add_custom_command(TARGET gui_hypervisor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    COMMENT "Creating output directory"
+)
+
+# Installation
+install(TARGETS gui_hypervisor
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
+
+# Create distribution package
+set(CPACK_PACKAGE_NAME "ARM64_GUI_Hypervisor")
+set(CPACK_PACKAGE_VERSION "2.0.0")
+set(CPACK_PACKAGE_DESCRIPTION "ARM64 GUI Hypervisor with Graphics Virtualization")
+set(CPACK_PACKAGE_VENDOR "ARM64 Hypervisor Project")
+set(CPACK_GENERATOR "ZIP")
+
+include(CPack)
+
+# Print build information
+message(STATUS "==========================================")
+message(STATUS "ARM64 GUI Hypervisor Configuration")
+message(STATUS "==========================================")
+message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "C Compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}")
+message(STATUS "Target Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "Output Directory: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+message(STATUS "==========================================")
