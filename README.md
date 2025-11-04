@@ -1,3 +1,4 @@
+<!-- Desenvolvido por: Escanearcpl -->
 # ARM64 Hypervisor Monitor
 
 Um hypervisor educativo para Windows ARM64 usando Windows Hypervisor Platform (WHP) APIs.
@@ -210,3 +211,4 @@ cmake --build . --config Release
 ## Licença
 
 Este projeto é educativo e open-source para aprendizado de hypervisors ARM64.
+
